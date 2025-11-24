@@ -52,10 +52,10 @@ export async function apiDelete<T>(endpoint: string): Promise<ApiResponse<T>> {
  */
 export async function getJwtToken(): Promise<string | null> {
     try {
-        const { Auth } = await import('aws-amplify');
-        const session = await Auth.currentSession();
-        const jwtToken = session.getIdToken().getJwtToken();
-        return jwtToken;
+        const { fetchAuthSession } = await import('aws-amplify/auth');
+        const session = await fetchAuthSession();
+        const jwtToken = session.tokens?.idToken?.toString();
+        return jwtToken || null;
     } catch (error) {
         console.log('로그인 상태가 아님:', error);
         return null;

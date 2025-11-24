@@ -44,6 +44,86 @@
     margin-top: 10px;
 }
 
+.login-container .btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.login-container .btn-secondary {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.login-container .btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 탭 스타일 */
+.auth-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #666;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: -2px;
+}
+
+.tab-button:hover {
+    color: #00C7B7;
+    background: #f7f7f7;
+}
+
+.tab-button.active {
+    color: #00C7B7;
+    border-bottom-color: #00C7B7;
+    font-weight: 600;
+}
+
+/* 에러 메시지 */
+.error-message {
+    background: #fee;
+    color: #c33;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    border: 1px solid #fcc;
+    text-align: left;
+}
+
+/* 확인 메시지 */
+.confirm-message {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 16px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    border: 1px solid #c8e6c9;
+    text-align: left;
+    line-height: 1.6;
+}
+
+.confirm-message strong {
+    color: #1b5e20;
+    font-weight: 600;
+}
+
 .forgot-password {
     display: block;
     margin-top: 15px;
@@ -55,4 +135,11 @@
 
 .forgot-password:hover {
     color: #4a90e2;
+}
+
+/* 입력 필드 disabled 스타일 */
+.form-group input:disabled {
+    background: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.7;
 }

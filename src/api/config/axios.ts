@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
-import { Auth } from 'aws-amplify';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import type { ApiError, ApiResponse } from '../../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL;
@@ -21,8 +21,8 @@ const axiosInstance: AxiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     async (config) => {
         try {
-            const session = await Auth.currentSession();
-            const jwtToken = session.getIdToken().getJwtToken();
+            const session = await fetchAuthSession();
+            const jwtToken = session.tokens?.idToken?.toString();
 
             if (jwtToken && config.headers) {
                 config.headers.Authorization = `Bearer ${jwtToken}`;

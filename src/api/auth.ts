@@ -1,4 +1,4 @@
-import { Auth } from 'aws-amplify';
+import { signIn as amplifySignIn, signOut as amplifySignOut, getCurrentUser as amplifyGetCurrentUser, fetchAuthSession, resetPassword, confirmResetPassword, signUp, confirmSignUp } from 'aws-amplify/auth';
 import type { CognitoUser } from '../types';
 
 /**
@@ -9,12 +9,17 @@ export async function signIn(
     password: string
 ): Promise<{ user: CognitoUser | null; error: string | null }> {
     try {
-        const user = await Auth.signIn(email, password);
+        await amplifySignIn({ username: email, password });
+        
+        // 로그인 성공 후 사용자 정보 가져오기
+        const user = await amplifyGetCurrentUser();
+        const session = await fetchAuthSession();
+        
         return {
             user: {
                 username: user.username,
-                email: user.attributes?.email,
-                attributes: user.attributes,
+                email: session.tokens?.idToken?.payload?.email as string | undefined,
+                attributes: {},
             },
             error: null,
         };
@@ -31,7 +36,7 @@ export async function signIn(
  */
 export async function signOut(): Promise<void> {
     try {
-        await Auth.signOut();
+        await amplifySignOut();
     } catch (error) {
         console.error('로그아웃 실패:', error);
         throw error;
@@ -43,11 +48,13 @@ export async function signOut(): Promise<void> {
  */
 export async function getCurrentUser(): Promise<CognitoUser | null> {
     try {
-        const user = await Auth.currentAuthenticatedUser();
+        const user = await amplifyGetCurrentUser();
+        const session = await fetchAuthSession();
+        
         return {
             username: user.username,
-            email: user.attributes?.email,
-            attributes: user.attributes,
+            email: session.tokens?.idToken?.payload?.email as string | undefined,
+            attributes: {},
         };
     } catch (error) {
         console.log('로그인 상태가 아님:', error);
@@ -60,8 +67,8 @@ export async function getCurrentUser(): Promise<CognitoUser | null> {
  */
 export async function checkAuthSession(): Promise<boolean> {
     try {
-        await Auth.currentSession();
-        return true;
+        const session = await fetchAuthSession();
+        return session.tokens !== undefined;
     } catch {
         return false;
     }
@@ -72,7 +79,7 @@ export async function checkAuthSession(): Promise<boolean> {
  */
 export async function forgotPassword(email: string): Promise<{ error: string | null }> {
     try {
-        await Auth.forgotPassword(email);
+        await resetPassword({ username: email });
         return { error: null };
     } catch (error) {
         const errorMessage =
@@ -91,12 +98,61 @@ export async function forgotPasswordSubmit(
     newPassword: string
 ): Promise<{ error: string | null }> {
     try {
-        await Auth.forgotPasswordSubmit(email, code, newPassword);
+        await confirmResetPassword({ username: email, confirmationCode: code, newPassword });
         return { error: null };
     } catch (error) {
         const errorMessage =
             error instanceof Error ? error.message : '비밀번호 변경에 실패했습니다.';
         console.error('비밀번호 변경 실패:', error);
+        return { error: errorMessage };
+    }
+}
+
+/**
+ * 관리자 회원가입
+ */
+export async function signUpAdmin(
+    email: string,
+    password: string
+): Promise<{ userId: string | null; error: string | null }> {
+    try {
+        const { userId, nextStep } = await signUp({
+            username: email,
+            password,
+            options: {
+                userAttributes: {
+                    email: email,
+                },
+            },
+        });
+
+        // 회원가입 성공 시 userId 반환 (이메일 인증 필요)
+        return { userId, error: null };
+    } catch (error) {
+        const errorMessage =
+            error instanceof Error ? error.message : '회원가입에 실패했습니다.';
+        console.error('회원가입 실패:', error);
+        return { userId: null, error: errorMessage };
+    }
+}
+
+/**
+ * 이메일 인증 코드 확인
+ */
+export async function confirmSignUpAdmin(
+    email: string,
+    confirmationCode: string
+): Promise<{ error: string | null }> {
+    try {
+        await confirmSignUp({
+            username: email,
+            confirmationCode,
+        });
+        return { error: null };
+    } catch (error) {
+        const errorMessage =
+            error instanceof Error ? error.message : '인증 코드 확인에 실패했습니다.';
+        console.error('인증 코드 확인 실패:', error);
         return { error: errorMessage };
     }
 }
