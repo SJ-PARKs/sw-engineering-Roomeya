@@ -4,7 +4,7 @@ import {
   getMatchingResults,
   deleteMatchingResults,
 } from '../api/admin';
-import type { MatchingResultResponse } from '../types';
+import type { MatchingResultItemResponse } from '../types';
 
 // Query Keys
 export const matchingKeys = {

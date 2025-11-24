@@ -11,6 +11,7 @@ import "../styles/dashboard.css";
 
 interface Survey {
   id: number;
+  formId?: string; // formId 추가
   title: string;
   deadline: string;
   status: "active" | "inactive";
@@ -24,50 +25,48 @@ interface MatchResult {
   matchScore: number;
 }
 
-interface MatchedPair {
-  studentA: string;
-  studentAId: string;
-  studentB: string;
-  studentBId: string;
-  score: number;
-}
-
 export default function Results() {
   const [selectedSurveyId, setSelectedSurveyId] = useState<number | null>(null);
 
   // 설문 목록 조회
   const { data: surveysData = [] } = useSurveys();
-  
-  // 매칭 결과 조회
-  const { data: matchingData } = useMatchingResults(
-    selectedSurveyId ? selectedSurveyId.toString() : null
-  );
 
   // 설문 목록을 로컬 형식으로 변환 (매칭 결과가 있는 설문만)
   const surveys: Survey[] = surveysData.map((survey) => {
-    const surveyWithExtras = survey as typeof survey & { deadline?: string };
+    const surveyWithExtras = survey as typeof survey & {
+      formId?: string;
+      deadline?: string;
+    };
     return {
       id: parseInt(survey.id) || 0,
+      formId: surveyWithExtras.formId || survey.id, // formId 저장
       title: survey.title,
-      deadline: surveyWithExtras.deadline ? new Date(surveyWithExtras.deadline).toISOString().split("T")[0] : "",
+      deadline: surveyWithExtras.deadline
+        ? new Date(surveyWithExtras.deadline).toISOString().split("T")[0]
+        : "",
       status: survey.status === "published" ? "active" : "inactive",
     };
   });
 
+  // 선택된 설문의 formId 찾기
+  const selectedSurvey = selectedSurveyId
+    ? surveys.find((s) => s.id === selectedSurveyId)
+    : null;
+  const selectedFormId = selectedSurvey?.formId || null;
+
+  // 매칭 결과 조회
+  const { data: matchingData = [] } = useMatchingResults(selectedFormId);
+
   // 매칭 결과를 로컬 형식으로 변환
-  const results: MatchResult[] = matchingData?.pairs?.map((pair, index) => {
-    // MatchingPairResponse 타입에 맞게 변환
-    const student1Parts = pair.student1?.split(' ') || ['', ''];
-    const student2Parts = pair.student2?.split(' ') || ['', ''];
-    
+  const results: MatchResult[] = matchingData.map((item, index) => {
     return {
       id: index + 1,
-      roomNumber: `A${String(index + 1).padStart(3, "0")}`,
-      studentA: pair.student1 || '',
-      studentB: pair.student2 || '',
-      matchScore: pair.score || 0,
+      roomNumber: item.roomId || `A${String(index + 1).padStart(3, "0")}`,
+      studentA: item.memberA || "",
+      studentB: item.memberB || "",
+      matchScore: item.score || 0,
     };
-  }) || [];
+  });
 
   // URL 파라미터에서 설문 ID 가져오기
   useEffect(() => {

@@ -2,32 +2,12 @@ import { useState, useRef } from "react";
 import AdminLayout from "../components/common/AdminLayout";
 import SurveyListTable from "../components/SurveyManagement/SurveyListTable";
 import SurveyForm from "../components/SurveyManagement/SurveyForm";
+import StudentMatchingPopup from "../components/Matching/StudentMatchingPopup";
 import { useSurveys, useCreateSurvey } from "../hooks";
 import { parseExcelFile } from "../utils/excelParser";
 import "../styles/survey-management.css";
 
-interface Survey {
-  id: number;
-  title: string;
-  createdDate: string;
-  deadline: string;
-  status: "active" | "inactive";
-  studentIds: string[]; // 설문에 참여할 학생 ID 목록
-  students: SurveyStudent[]; // 설문별 학생 상세 정보
-  questions: Question[];
-}
-
-interface SurveyStudent {
-  id: string;
-  name: string;
-  gender: string;
-}
-
-interface Question {
-  id: number;
-  text: string;
-  type: "multiple-choice" | "text-input";
-}
+import { type Survey, type SurveyStudent, type Question } from "../types/survey";
 
 export default function SurveyManagement() {
   // 설문 목록 조회
@@ -98,6 +78,21 @@ export default function SurveyManagement() {
   const [isUploading, setIsUploading] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [surveyLink, setSurveyLink] = useState("");
+  const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
+
+  const handleTitleClick = (survey: Survey) => {
+    setSelectedSurvey(survey);
+  };
+
+  const handleClosePopup = () => {
+    setSelectedSurvey(null);
+  };
+
+  const handleSaveMatching = (students: any[]) => {
+    console.log("Saved students matching:", students);
+    // Here you would typically call an API to save the new order
+    alert("매칭 결과가 저장되었습니다.");
+  };
 
   const handleAddStudent = () => {
     if (!newStudentId || !newStudentName || !newStudentGender) {
@@ -195,8 +190,8 @@ export default function SurveyManagement() {
           student.gender === "M"
             ? "남"
             : student.gender === "F"
-            ? "여"
-            : student.gender,
+              ? "여"
+              : student.gender,
       }));
 
       // 기존 학생 목록과 병합 (중복 제거)
@@ -219,8 +214,7 @@ export default function SurveyManagement() {
     } catch (error) {
       console.error("엑셀 파일 파싱 실패:", error);
       alert(
-        `엑셀 파일 파싱에 실패했습니다: ${
-          error instanceof Error ? error.message : "알 수 없는 오류"
+        `엑셀 파일 파싱에 실패했습니다: ${error instanceof Error ? error.message : "알 수 없는 오류"
         }`
       );
     } finally {
@@ -415,7 +409,15 @@ export default function SurveyManagement() {
         onChange={handleFileChange}
       />
 
-      <SurveyListTable surveys={surveys} />
+      <SurveyListTable surveys={surveys} onTitleClick={handleTitleClick} />
+
+      {selectedSurvey && (
+        <StudentMatchingPopup
+          surveyTitle={selectedSurvey.title}
+          onClose={handleClosePopup}
+          onSave={handleSaveMatching}
+        />
+      )}
 
       <SurveyForm
         title={surveyTitle}

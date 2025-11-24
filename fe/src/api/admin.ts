@@ -5,6 +5,7 @@ import type {
     SurveyResponse,
     SurveySubmissionResponse,
     MatchingResultResponse,
+    MatchingResultItemResponse,
     SurveyStudentResponse,
     CreateSurveyRequest,
     UpdateSurveyRequest,
@@ -417,16 +418,43 @@ export async function runMatching(formId: string): Promise<MatchingResultRespons
  * 매칭 결과 조회
  */
 export async function getMatchingResults(
-    surveyId: string
-): Promise<MatchingResultResponse | null> {
-    const response = await apiGet<MatchingResultResponse>(
-        `/admin/forms/${surveyId}/matching`
+    formId: string
+): Promise<MatchingResultItemResponse[]> {
+    // 인증 토큰 가져오기
+    let jwtToken: string | null = null;
+    try {
+        const session = await fetchAuthSession();
+        jwtToken = session.tokens?.idToken?.toString() || null;
+
+        if (!jwtToken) {
+            console.error('인증 토큰이 없습니다. 로그인이 필요합니다.');
+            return [];
+        }
+    } catch (error) {
+        console.error('인증 토큰을 가져올 수 없습니다:', error);
+        return [];
+    }
+
+    // 명시적으로 인증 헤더를 포함하여 요청
+    const response = await apiClient.get<MatchingResultItemResponse[]>(
+        `/matching/result/${formId}`,
+        {
+            headers: {
+                'Authorization': `Bearer ${jwtToken}`,
+                'Content-Type': 'application/json',
+            },
+        }
     );
+
     if (response.error) {
         console.error('매칭 결과 조회 실패:', response.error);
-        return null;
+        // 인증 관련 에러인지 확인
+        if (response.error.statusCode === 401 || response.error.code === 'UNAUTHORIZED') {
+            console.error('인증이 필요합니다. 로그인해주세요.');
+        }
+        return [];
     }
-    return response.data || null;
+    return response.data || [];
 }
 
 /**

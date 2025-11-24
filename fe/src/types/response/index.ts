@@ -40,5 +40,6 @@ export type {
 export type {
     MatchingPairResponse,
     MatchingResultResponse,
+    MatchingResultItemResponse,
 } from './matching.response';
 

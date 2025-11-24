@@ -15,3 +15,13 @@ export interface MatchingResultResponse {
     totalPairs: number;
 }
 
+/**
+ * 매칭 결과 응답 (새 형식)
+ */
+export interface MatchingResultItemResponse {
+    roomId: string;
+    score: number;
+    memberA: string;
+    memberB: string;
+}
+
