@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getSurveys,
   getSurveysWithStats,
+  getMatchingResultsWithStats,
   getSurvey,
   createSurvey,
   updateSurvey,
@@ -28,7 +29,7 @@ export const surveyKeys = {
  * 모든 설문 목록 조회
  */
 export function useSurveys() {
-  return useQuery({
+  return useQuery<SurveyResponse[]>({
     queryKey: surveyKeys.lists(),
     queryFn: getSurveys,
   });
@@ -38,9 +39,19 @@ export function useSurveys() {
  * 설문 목록 조회 (통계 정보 포함)
  */
 export function useSurveysWithStats() {
-  return useQuery({
+  return useQuery<SurveyListWithStatsResponse[]>({
     queryKey: [...surveyKeys.lists(), 'with-stats'],
     queryFn: getSurveysWithStats,
+  });
+}
+
+/**
+ * 매칭 실행 결과 조회 (설문 목록과 통계 정보 포함)
+ */
+export function useMatchingResultsWithStats() {
+  return useQuery<SurveyListWithStatsResponse[]>({
+    queryKey: [...surveyKeys.lists(), 'matching-results'],
+    queryFn: getMatchingResultsWithStats,
   });
 }
 

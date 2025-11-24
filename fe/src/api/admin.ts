@@ -65,6 +65,57 @@ export async function getSurveysWithStats(): Promise<SurveyListWithStatsResponse
 }
 
 /**
+ * 매칭 실행 결과 조회 (설문 목록과 통계 정보 포함)
+ * @returns 매칭이 실행된 설문 목록과 참여자 통계 정보
+ */
+export async function getMatchingResultsWithStats(): Promise<SurveyListWithStatsResponse[]> {
+    // 인증 토큰 가져오기
+    let jwtToken: string | null = null;
+    try {
+        const session = await fetchAuthSession();
+        jwtToken = session.tokens?.idToken?.toString() || null;
+
+        if (!jwtToken) {
+            console.error('인증 토큰이 없습니다. 로그인이 필요합니다.');
+            return [];
+        }
+    } catch (error) {
+        console.error('인증 토큰을 가져올 수 없습니다:', error);
+        return [];
+    }
+
+    // 명시적으로 인증 헤더를 포함하여 요청
+    const response = await apiClient.get<SurveyListWithStatsResponse[]>(
+        '/admin/forms',
+        {
+            headers: {
+                'Authorization': `Bearer ${jwtToken}`,
+                'Content-Type': 'application/json',
+            },
+        }
+    );
+
+    if (response.error) {
+        console.error('매칭 실행 결과 조회 실패:', response.error);
+        // 404 오류인 경우 더 명확한 메시지 출력
+        if (response.error.statusCode === 404) {
+            console.error('⚠️ GET /admin/forms 엔드포인트가 서버에 존재하지 않습니다.');
+            console.error('서버에 GET /admin/forms 엔드포인트를 구현했는지 확인해주세요.');
+        }
+        // CORS 오류인 경우
+        if (response.error.code === 'ERR_NETWORK' || response.error.message?.includes('CORS')) {
+            console.error('⚠️ CORS 오류가 발생했습니다. 서버에서 CORS 헤더를 설정했는지 확인해주세요.');
+        }
+        // 인증 관련 에러인지 확인
+        if (response.error.statusCode === 401 || response.error.code === 'UNAUTHORIZED') {
+            console.error('인증이 필요합니다. 로그인해주세요.');
+        }
+        return [];
+    }
+    return response.data || [];
+}
+
+/**
  * 특정 설문 조회
  */
 export async function getSurvey(surveyId: string): Promise<SurveyResponse | null> {
@@ -296,18 +347,19 @@ export async function getStudentResponse(
 export async function submitSurveyResponse(
     formId: string,
     studentId: string,
-    studentName: string,
+    name: string,
     answers: Record<string, unknown>
 ): Promise<SurveySubmissionResponse | null> {
     const response = await apiPost<SurveySubmissionResponse>(
-        `/forms/${formId}/responses`,
+        '/student/submit',
         {
-            formId, // URL의 formId와 일치하는지 서버에서 검증
+            formId,
             studentId,
-            studentName,
+            name,
             answers,
         }
     );
+    console.log("response", response);
     if (response.error) {
         console.error('설문 응답 제출 실패:', response.error);
         return null;
@@ -320,12 +372,42 @@ export async function submitSurveyResponse(
 /**
  * 매칭 실행
  */
-export async function runMatching(surveyId: string): Promise<MatchingResultResponse | null> {
-    const response = await apiPost<MatchingResultResponse>(
-        `/admin/forms/${surveyId}/matching`
+export async function runMatching(formId: string): Promise<MatchingResultResponse | null> {
+    // 인증 토큰 가져오기
+    let jwtToken: string | null = null;
+    try {
+        const session = await fetchAuthSession();
+        jwtToken = session.tokens?.idToken?.toString() || null;
+
+        if (!jwtToken) {
+            console.error('인증 토큰이 없습니다. 로그인이 필요합니다.');
+            return null;
+        }
+    } catch (error) {
+        console.error('인증 토큰을 가져올 수 없습니다:', error);
+        return null;
+    }
+
+    // 명시적으로 인증 헤더를 포함하여 요청
+    const response = await apiClient.post<MatchingResultResponse>(
+        '/matching/start',
+        {
+            formId,
+        },
+        {
+            headers: {
+                'Authorization': `Bearer ${jwtToken}`,
+                'Content-Type': 'application/json',
+            },
+        }
     );
+
     if (response.error) {
         console.error('매칭 실행 실패:', response.error);
+        // 인증 관련 에러인지 확인
+        if (response.error.statusCode === 401 || response.error.code === 'UNAUTHORIZED') {
+            console.error('인증이 필요합니다. 로그인해주세요.');
+        }
         return null;
     }
     return response.data || null;

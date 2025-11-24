@@ -4,7 +4,7 @@ import SurveySelector from "../components/Matching/SurveySelector";
 import MatchingStats from "../components/Matching/MatchingStats";
 import MatchingAction from "../components/Matching/MatchingAction";
 import {
-  useSurveysWithStats,
+  useMatchingResultsWithStats,
   useSurveyResponses,
   useRunMatching,
 } from "../hooks";
@@ -13,6 +13,7 @@ import "../styles/survey.css";
 
 interface Survey {
   id: number;
+  formId: string; // formId 추가
   title: string;
   createdDate: string;
   deadline: string;
@@ -50,14 +51,20 @@ export default function Matching() {
   const [matchingStatus, setMatchingStatus] = useState<string>("");
   const [selectedSurveyId, setSelectedSurveyId] = useState<number | null>(null);
 
-  // 설문 목록 조회 (통계 정보 포함)
-  const { data: surveysWithStatsData = [] } = useSurveysWithStats();
+  // 매칭 실행 결과 조회 (통계 정보 포함)
+  const { data: surveysWithStatsData = [] } = useMatchingResultsWithStats();
   const runMatchingMutation = useRunMatching();
 
   // 설문 목록을 로컬 형식으로 변환
-  const surveys: Survey[] = surveysWithStatsData.map((survey) => {
+  const surveys: Survey[] = surveysWithStatsData.map((survey, index) => {
+    // formId를 숫자로 변환하되, 실패하면 고유한 인덱스 기반 ID 사용
+    const parsedId = parseInt(survey.formId);
+    const uniqueId =
+      !isNaN(parsedId) && parsedId !== 0 ? parsedId : index + 10000;
+
     return {
-      id: parseInt(survey.formId) || 0,
+      id: uniqueId,
+      formId: survey.formId, // formId 저장
       title: survey.title,
       createdDate: survey.createdAt
         ? new Date(survey.createdAt).toISOString().split("T")[0]
@@ -73,8 +80,11 @@ export default function Matching() {
   });
 
   // 선택된 설문의 formId 찾기
-  const selectedSurveyWithStats = selectedSurveyId
-    ? surveysWithStatsData.find((s) => parseInt(s.formId) === selectedSurveyId)
+  const selectedSurvey = selectedSurveyId
+    ? surveys.find((s) => s.id === selectedSurveyId)
+    : null;
+  const selectedSurveyWithStats = selectedSurvey
+    ? surveysWithStatsData.find((s) => s.formId === selectedSurvey.formId)
     : null;
 
   // 선택된 설문의 응답 데이터 조회
@@ -124,8 +134,14 @@ export default function Matching() {
       return;
     }
 
+    const survey = surveys.find((s) => s.id === selectedSurveyId);
+    if (!survey) {
+      alert("선택한 설문을 찾을 수 없습니다.");
+      return;
+    }
+
     const surveyWithStats = surveysWithStatsData.find(
-      (s) => parseInt(s.formId) === selectedSurveyId
+      (s) => s.formId === survey.formId
     );
     if (!surveyWithStats) {
       alert("선택한 설문을 찾을 수 없습니다.");
@@ -175,8 +191,11 @@ export default function Matching() {
 
   // 선택된 설문의 통계 정보 (서버에서 받은 데이터 사용)
   const getSurveyStats = (surveyId: number) => {
+    const survey = surveys.find((s) => s.id === surveyId);
+    if (!survey) return { total: 0, completed: 0, rate: 0 };
+
     const surveyWithStats = surveysWithStatsData.find(
-      (s) => parseInt(s.formId) === surveyId
+      (s) => s.formId === survey.formId
     );
     if (!surveyWithStats) return { total: 0, completed: 0, rate: 0 };
 

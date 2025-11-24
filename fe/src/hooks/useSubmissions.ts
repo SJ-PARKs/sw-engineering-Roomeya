@@ -48,14 +48,14 @@ export function useSubmitSurveyResponse() {
     mutationFn: ({
       formId,
       studentId,
-      studentName,
+      name,
       answers,
     }: {
       formId: string;
       studentId: string;
-      studentName: string;
+      name: string;
       answers: Record<string, unknown>;
-    }) => submitSurveyResponse(formId, studentId, studentName, answers),
+    }) => submitSurveyResponse(formId, studentId, name, answers),
     onSuccess: (_, variables) => {
       // 해당 설문의 응답 목록 캐시 무효화
       queryClient.invalidateQueries({ queryKey: submissionKeys.list(variables.formId) });

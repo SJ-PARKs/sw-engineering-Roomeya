@@ -6,7 +6,7 @@ import { useSubmitSurveyResponse, useIdentifyStudent } from "../hooks";
 import "../styles/survey.css";
 
 export default function Survey() {
-  const { surveyId } = useParams<{ surveyId: string }>();
+  const { surveyId: formId } = useParams<{ surveyId: string }>();
 
   const [isVerified, setIsVerified] = useState(false);
   const [studentId, setStudentId] = useState("");
@@ -36,7 +36,7 @@ export default function Survey() {
       return;
     }
 
-    if (!surveyId) {
+    if (!formId) {
       setVerificationError("설문 ID가 없습니다.");
       return;
     }
@@ -85,7 +85,7 @@ export default function Survey() {
       return;
     }
 
-    if (!surveyId) {
+    if (!formId) {
       alert("설문 ID가 없습니다.");
       return;
     }
@@ -93,9 +93,9 @@ export default function Survey() {
     // 서버 API로 설문 응답 제출 (URL의 formId를 서버로 보내서 검증)
     try {
       const result = await submitResponseMutation.mutateAsync({
-        formId: surveyId, // URL의 formId
+        formId,
         studentId,
-        studentName,
+        name: studentName, // name 필드로 변경
         answers: formData,
       });
 

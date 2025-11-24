@@ -2,6 +2,7 @@ import "../../styles/dashboard.css";
 
 interface Survey {
   id: number;
+  formId?: string; // formId 추가 (선택적)
   title: string;
   deadline: string;
 }
@@ -43,8 +44,11 @@ export default function SurveySelector({
         }}
       >
         <option value="">설문을 선택하세요</option>
-        {surveys.map((survey) => (
-          <option key={survey.id} value={survey.id}>
+        {surveys.map((survey, index) => (
+          <option
+            key={survey.formId || `survey-${survey.id}-${index}`}
+            value={survey.id}
+          >
             {survey.title} (마감: {survey.deadline})
           </option>
         ))}
@@ -52,4 +56,3 @@ export default function SurveySelector({
     </div>
   );
 }
-

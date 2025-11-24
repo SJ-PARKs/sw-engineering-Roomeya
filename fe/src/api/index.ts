@@ -22,6 +22,8 @@ export {
 // 관리자 API
 export {
     getSurveys,
+    getSurveysWithStats,
+    getMatchingResultsWithStats,
     getSurvey,
     createSurvey,
     updateSurvey,
