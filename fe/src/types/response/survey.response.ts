@@ -23,3 +23,16 @@ export interface SurveyListResponse {
 
 export interface SurveyDetailResponse extends SurveyResponse { }
 
+/**
+ * 설문 목록 조회 응답 (통계 정보 포함)
+ */
+export interface SurveyListWithStatsResponse {
+    formId: string;
+    title: string;
+    deadline: string;
+    createdAt: string;
+    totalParticipants: number;
+    completedCount: number;
+    notCompletedCount: number;
+}
+

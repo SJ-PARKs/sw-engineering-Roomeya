@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getSurveys,
+  getSurveysWithStats,
   getSurvey,
   createSurvey,
   updateSurvey,
@@ -9,6 +10,7 @@ import {
 } from '../api/admin';
 import type {
   SurveyResponse,
+  SurveyListWithStatsResponse,
   CreateSurveyRequest,
   UpdateSurveyRequest,
 } from '../types';
@@ -29,6 +31,16 @@ export function useSurveys() {
   return useQuery({
     queryKey: surveyKeys.lists(),
     queryFn: getSurveys,
+  });
+}
+
+/**
+ * 설문 목록 조회 (통계 정보 포함)
+ */
+export function useSurveysWithStats() {
+  return useQuery({
+    queryKey: [...surveyKeys.lists(), 'with-stats'],
+    queryFn: getSurveysWithStats,
   });
 }
 

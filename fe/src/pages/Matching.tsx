@@ -3,7 +3,11 @@ import AdminLayout from "../components/common/AdminLayout";
 import SurveySelector from "../components/Matching/SurveySelector";
 import MatchingStats from "../components/Matching/MatchingStats";
 import MatchingAction from "../components/Matching/MatchingAction";
-import { useSurveys, useSurveyResponses, useRunMatching } from "../hooks";
+import {
+  useSurveysWithStats,
+  useSurveyResponses,
+  useRunMatching,
+} from "../hooks";
 import "../styles/dashboard.css";
 import "../styles/survey.css";
 
@@ -46,61 +50,36 @@ export default function Matching() {
   const [matchingStatus, setMatchingStatus] = useState<string>("");
   const [selectedSurveyId, setSelectedSurveyId] = useState<number | null>(null);
 
-  // 설문 목록 조회
-  const { data: surveysData = [] } = useSurveys();
+  // 설문 목록 조회 (통계 정보 포함)
+  const { data: surveysWithStatsData = [] } = useSurveysWithStats();
   const runMatchingMutation = useRunMatching();
 
   // 설문 목록을 로컬 형식으로 변환
-  const surveys: Survey[] = surveysData
-    .filter((s) => s.status === "published")
-    .map((survey) => {
-      // API 응답에 추가 필드가 있을 수 있으므로 타입 단언 사용
-      const surveyWithExtras = survey as typeof survey & {
-        deadline?: string;
-        participants?: Array<{
-          studentId: string;
-          name: string;
-          gender: string;
-        }>;
-        fields?: Array<{
-          id: string;
-          title: string;
-          type: string;
-          options?: string[];
-        }>;
-      };
+  const surveys: Survey[] = surveysWithStatsData.map((survey) => {
+    return {
+      id: parseInt(survey.formId) || 0,
+      title: survey.title,
+      createdDate: survey.createdAt
+        ? new Date(survey.createdAt).toISOString().split("T")[0]
+        : "",
+      deadline: survey.deadline
+        ? new Date(survey.deadline).toISOString().split("T")[0]
+        : "",
+      status: "active", // 서버에서 받은 설문은 모두 활성화된 것으로 간주
+      studentIds: [],
+      students: [],
+      questions: [],
+    };
+  });
 
-      return {
-        id: parseInt(survey.id) || 0,
-        title: survey.title,
-        createdDate: survey.createdAt
-          ? new Date(survey.createdAt).toISOString().split("T")[0]
-          : "",
-        deadline: surveyWithExtras.deadline
-          ? new Date(surveyWithExtras.deadline).toISOString().split("T")[0]
-          : "",
-        status: survey.status === "published" ? "active" : "inactive",
-        studentIds:
-          surveyWithExtras.participants?.map((p) => p.studentId) || [],
-        students:
-          surveyWithExtras.participants?.map((p) => ({
-            id: p.studentId,
-            name: p.name,
-            gender: p.gender,
-          })) || [],
-        questions:
-          surveyWithExtras.fields?.map((f, index) => ({
-            id: index + 1,
-            text: f.title,
-            type:
-              f.type === "multiple-choice" ? "multiple-choice" : "text-input",
-          })) || [],
-      };
-    });
+  // 선택된 설문의 formId 찾기
+  const selectedSurveyWithStats = selectedSurveyId
+    ? surveysWithStatsData.find((s) => parseInt(s.formId) === selectedSurveyId)
+    : null;
 
   // 선택된 설문의 응답 데이터 조회
   const { data: responsesData = [] } = useSurveyResponses(
-    selectedSurveyId ? selectedSurveyId.toString() : null
+    selectedSurveyWithStats?.formId || null
   );
 
   // 응답 데이터를 로컬 형식으로 변환
@@ -145,25 +124,25 @@ export default function Matching() {
       return;
     }
 
-    const survey = surveys.find((s) => s.id === selectedSurveyId);
-    if (!survey) {
+    const surveyWithStats = surveysWithStatsData.find(
+      (s) => parseInt(s.formId) === selectedSurveyId
+    );
+    if (!surveyWithStats) {
       alert("선택한 설문을 찾을 수 없습니다.");
       return;
     }
 
-    const responses = getSurveyResponses();
-    const studentCount = survey.students
-      ? survey.students.length
-      : survey.studentIds.length;
+    const totalParticipants = surveyWithStats.totalParticipants;
+    const completedCount = surveyWithStats.completedCount;
 
-    if (studentCount < 2) {
+    if (totalParticipants < 2) {
       alert(
         "매칭을 실행하려면 최소 2명 이상의 학생이 설문에 포함되어야 합니다."
       );
       return;
     }
 
-    if (responses.length < 2) {
+    if (completedCount < 2) {
       alert("매칭을 실행하려면 최소 2명 이상의 학생이 설문을 완료해야 합니다.");
       return;
     }
@@ -172,7 +151,7 @@ export default function Matching() {
 
     try {
       const result = await runMatchingMutation.mutateAsync(
-        selectedSurveyId.toString()
+        surveyWithStats.formId
       );
 
       if (result) {
@@ -194,16 +173,15 @@ export default function Matching() {
 
   const activeSurveys = surveys.filter((s) => s.status === "active");
 
-  // 선택된 설문의 통계 계산
+  // 선택된 설문의 통계 정보 (서버에서 받은 데이터 사용)
   const getSurveyStats = (surveyId: number) => {
-    const survey = surveys.find((s) => s.id === surveyId);
-    if (!survey) return { total: 0, completed: 0, rate: 0 };
+    const surveyWithStats = surveysWithStatsData.find(
+      (s) => parseInt(s.formId) === surveyId
+    );
+    if (!surveyWithStats) return { total: 0, completed: 0, rate: 0 };
 
-    const responses = getSurveyResponses();
-    const total = survey.students
-      ? survey.students.length
-      : survey.studentIds.length;
-    const completed = responses.length;
+    const total = surveyWithStats.totalParticipants;
+    const completed = surveyWithStats.completedCount;
     const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return { total, completed, rate };

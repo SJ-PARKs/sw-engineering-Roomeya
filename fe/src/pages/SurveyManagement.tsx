@@ -38,6 +38,7 @@ export default function SurveyManagement() {
   const surveys: Survey[] = surveysData.map((survey) => {
     // API 응답에 추가 필드가 있을 수 있으므로 타입 단언 사용
     const surveyWithExtras = survey as typeof survey & {
+      formId?: string;
       deadline?: string;
       participants?: Array<{ studentId: string; name: string; gender: string }>;
       fields?: Array<{
@@ -48,8 +49,11 @@ export default function SurveyManagement() {
       }>;
     };
 
+    // formId가 있으면 formId를 사용하고, 없으면 id를 사용
+    const surveyId = surveyWithExtras.formId || survey.id;
+
     return {
-      id: parseInt(survey.id) || 0,
+      id: parseInt(surveyId) || 0,
       title: survey.title,
       createdDate: survey.createdAt
         ? new Date(survey.createdAt).toISOString().split("T")[0]
@@ -92,6 +96,8 @@ export default function SurveyManagement() {
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentGender, setNewStudentGender] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [surveyLink, setSurveyLink] = useState("");
 
   const handleEditSurvey = (surveyId: number) => {
     alert(`설문 ${surveyId} 수정 기능 (구현 예정)`);
@@ -132,6 +138,23 @@ export default function SurveyManagement() {
   const handleDeleteStudent = (studentId: string) => {
     if (confirm("이 학생을 목록에서 제거하시겠습니까?")) {
       setSurveyStudents(surveyStudents.filter((s) => s.id !== studentId));
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(surveyLink);
+      alert("링크가 클립보드에 복사되었습니다!");
+    } catch (error) {
+      console.error("복사 실패:", error);
+      // fallback: 텍스트 선택
+      const textArea = document.createElement("textarea");
+      textArea.value = surveyLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      alert("링크가 클립보드에 복사되었습니다!");
     }
   };
 
@@ -364,16 +387,20 @@ export default function SurveyManagement() {
         fields,
       });
 
+      console.log("createdSurvey", createdSurvey);
       if (!createdSurvey) {
         alert("설문 배포에 실패했습니다.");
         return;
       }
 
       // 서버에서 받은 formId로 설문 링크 생성
-      const surveyLink = `${window.location.origin}/survey/${createdSurvey.id}`;
-      alert(
-        `설문 배포 완료!\n\n설문 링크: ${surveyLink}\n\n이 링크를 학생들에게 공유해주세요.`
-      );
+      const surveyWithFormId = createdSurvey as typeof createdSurvey & {
+        formId?: string;
+      };
+      const formId = surveyWithFormId.formId || createdSurvey.id;
+      const link = `${window.location.origin}/survey/${formId}`;
+      setSurveyLink(link);
+      setShowLinkModal(true);
 
       // 폼 초기화
       setSurveyTitle("");
@@ -424,6 +451,50 @@ export default function SurveyManagement() {
         onDeploy={handleDeploySurvey}
         isUploading={isUploading}
       />
+
+      {/* 설문 링크 모달 */}
+      {showLinkModal && (
+        <div className="modal-overlay" onClick={() => setShowLinkModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>설문 배포 완료</h3>
+              <button
+                className="modal-close"
+                onClick={() => setShowLinkModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-message">
+                설문이 성공적으로 배포되었습니다.
+                <br />
+                아래 링크를 학생들에게 공유해주세요.
+              </p>
+              <div className="link-container">
+                <input
+                  type="text"
+                  value={surveyLink}
+                  readOnly
+                  className="link-input"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button className="btn-copy" onClick={handleCopyLink}>
+                  복사
+                </button>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn-primary"
+                onClick={() => setShowLinkModal(false)}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

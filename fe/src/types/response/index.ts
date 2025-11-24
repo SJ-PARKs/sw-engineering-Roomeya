@@ -17,6 +17,7 @@ export type {
     SurveyResponse,
     SurveyListResponse,
     SurveyDetailResponse,
+    SurveyListWithStatsResponse,
 } from './survey.response';
 
 export type {

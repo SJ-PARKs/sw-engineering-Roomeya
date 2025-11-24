@@ -12,6 +12,7 @@ import type {
     GetUploadUrlRequest,
     UploadUrlResponse,
     SuccessResponse,
+    SurveyListWithStatsResponse,
 } from '../types';
 
 /**
@@ -27,6 +28,37 @@ export async function getSurveys(): Promise<SurveyResponse[]> {
     const response = await apiGet<SurveyResponse[]>('/admin/forms');
     if (response.error) {
         console.error('설문 목록 조회 실패:', response.error);
+        // 404 오류인 경우 더 명확한 메시지 출력
+        if (response.error.statusCode === 404) {
+            console.error('⚠️ GET /admin/forms 엔드포인트가 서버에 존재하지 않습니다.');
+            console.error('서버에 GET /admin/forms 엔드포인트를 구현했는지 확인해주세요.');
+        }
+        // CORS 오류인 경우
+        if (response.error.code === 'ERR_NETWORK' || response.error.message?.includes('CORS')) {
+            console.error('⚠️ CORS 오류가 발생했습니다. 서버에서 CORS 헤더를 설정했는지 확인해주세요.');
+        }
+        return [];
+    }
+    return response.data || [];
+}
+
+/**
+ * 설문 목록 조회 (통계 정보 포함)
+ * @returns 설문 목록과 참여자 통계 정보
+ */
+export async function getSurveysWithStats(): Promise<SurveyListWithStatsResponse[]> {
+    const response = await apiGet<SurveyListWithStatsResponse[]>('/admin/forms');
+    if (response.error) {
+        console.error('설문 목록 조회 실패:', response.error);
+        // 404 오류인 경우 더 명확한 메시지 출력
+        if (response.error.statusCode === 404) {
+            console.error('⚠️ GET /admin/forms 엔드포인트가 서버에 존재하지 않습니다.');
+            console.error('서버에 GET /admin/forms 엔드포인트를 구현했는지 확인해주세요.');
+        }
+        // CORS 오류인 경우
+        if (response.error.code === 'ERR_NETWORK' || response.error.message?.includes('CORS')) {
+            console.error('⚠️ CORS 오류가 발생했습니다. 서버에서 CORS 헤더를 설정했는지 확인해주세요.');
+        }
         return [];
     }
     return response.data || [];

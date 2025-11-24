@@ -52,6 +52,7 @@ export default function Survey() {
         setIsVerified(true);
         setVerificationError("");
       } else {
+        console.log(result);
         setVerificationError(
           "학번과 이름이 일치하지 않거나 등록되지 않은 학생입니다."
         );
