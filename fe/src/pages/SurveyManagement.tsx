@@ -99,16 +99,6 @@ export default function SurveyManagement() {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [surveyLink, setSurveyLink] = useState("");
 
-  const handleEditSurvey = (surveyId: number) => {
-    alert(`설문 ${surveyId} 수정 기능 (구현 예정)`);
-  };
-
-  const handleDeleteSurvey = (surveyId: number) => {
-    if (confirm(`설문 ${surveyId}를 삭제하시겠습니까?`)) {
-      alert("삭제 완료 (구현 예정)");
-    }
-  };
-
   const handleAddStudent = () => {
     if (!newStudentId || !newStudentName || !newStudentGender) {
       alert("학번, 이름, 성별을 모두 입력해주세요.");
@@ -425,11 +415,7 @@ export default function SurveyManagement() {
         onChange={handleFileChange}
       />
 
-      <SurveyListTable
-        surveys={surveys}
-        onEdit={handleEditSurvey}
-        onDelete={handleDeleteSurvey}
-      />
+      <SurveyListTable surveys={surveys} />
 
       <SurveyForm
         title={surveyTitle}

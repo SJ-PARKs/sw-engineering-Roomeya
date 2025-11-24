@@ -390,7 +390,7 @@ export async function runMatching(formId: string): Promise<MatchingResultRespons
 
     // 명시적으로 인증 헤더를 포함하여 요청
     const response = await apiClient.post<MatchingResultResponse>(
-        '/matching/start',
+        '/admin/matching/start',
         {
             formId,
         },
