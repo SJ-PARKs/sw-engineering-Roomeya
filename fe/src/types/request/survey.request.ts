@@ -9,7 +9,7 @@ import type { CreateQuestionRequest } from './question.request';
  * 설문 참여자 (서버 API 형식)
  */
 export interface SurveyParticipant {
-    studentNo: string;
+    studentId: string;
     name: string;
     gender: '남' | '여';
 }
@@ -30,7 +30,6 @@ export interface SurveyField {
 export interface CreateSurveyRequest {
     title: string;
     deadline: string; // ISO 형식: "2025-11-17T23:59:59"
-    link?: string; // 빈 문자열 또는 서버에서 생성된 링크
     participants: SurveyParticipant[];
     fields: SurveyField[];
 }

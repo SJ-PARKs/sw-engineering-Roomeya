@@ -32,6 +32,7 @@ export {
     getSurveyStudents,
     getSurveyResponses,
     getStudentResponse,
+    submitSurveyResponse,
     runMatching,
     getMatchingResults,
     deleteMatchingResults,

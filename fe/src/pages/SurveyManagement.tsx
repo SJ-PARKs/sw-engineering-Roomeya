@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import AdminLayout from "../components/common/AdminLayout";
 import SurveyListTable from "../components/SurveyManagement/SurveyListTable";
 import SurveyForm from "../components/SurveyManagement/SurveyForm";
-import { createSurvey } from "../api/admin";
+import { useSurveys, useCreateSurvey } from "../hooks";
 import { parseExcelFile } from "../utils/excelParser";
 import "../styles/survey-management.css";
 
@@ -30,10 +30,49 @@ interface Question {
 }
 
 export default function SurveyManagement() {
-  // 설문 목록은 서버에서 가져옴 (로컬 스토리지 제거)
-  const getSurveys = (): Survey[] => {
-    return [];
-  };
+  // 설문 목록 조회
+  const { data: surveysData = [] } = useSurveys();
+  const createSurveyMutation = useCreateSurvey();
+
+  // 설문 목록을 로컬 형식으로 변환
+  const surveys: Survey[] = surveysData.map((survey) => {
+    // API 응답에 추가 필드가 있을 수 있으므로 타입 단언 사용
+    const surveyWithExtras = survey as typeof survey & {
+      deadline?: string;
+      participants?: Array<{ studentId: string; name: string; gender: string }>;
+      fields?: Array<{
+        id: string;
+        title: string;
+        type: string;
+        options?: string[];
+      }>;
+    };
+
+    return {
+      id: parseInt(survey.id) || 0,
+      title: survey.title,
+      createdDate: survey.createdAt
+        ? new Date(survey.createdAt).toISOString().split("T")[0]
+        : "",
+      deadline: surveyWithExtras.deadline
+        ? new Date(surveyWithExtras.deadline).toISOString().split("T")[0]
+        : "",
+      status: survey.status === "published" ? "active" : "inactive",
+      studentIds: surveyWithExtras.participants?.map((p) => p.studentId) || [],
+      students:
+        surveyWithExtras.participants?.map((p) => ({
+          id: p.studentId,
+          name: p.name,
+          gender: p.gender,
+        })) || [],
+      questions:
+        surveyWithExtras.fields?.map((f, index) => ({
+          id: index + 1,
+          text: f.title,
+          type: f.type === "multiple-choice" ? "multiple-choice" : "text-input",
+        })) || [],
+    };
+  });
 
   // 고정된 질문 목록
   const fixedQuestions: Question[] = [
@@ -46,7 +85,6 @@ export default function SurveyManagement() {
     { id: 7, text: "특이사항 또는 요청사항", type: "text-input" },
   ];
 
-  const [surveys, setSurveys] = useState<Survey[]>(getSurveys());
   const [surveyTitle, setSurveyTitle] = useState("");
   const [surveyDeadline, setSurveyDeadline] = useState("");
   const [surveyStudents, setSurveyStudents] = useState<SurveyStudent[]>([]);
@@ -199,7 +237,7 @@ export default function SurveyManagement() {
 
     // 참여자 데이터 변환 (서버 API 형식)
     const participants = surveyStudents.map((s) => ({
-      studentNo: s.id,
+      studentId: s.id,
       name: s.name,
       gender: s.gender as "남" | "여",
     }));
@@ -238,10 +276,9 @@ export default function SurveyManagement() {
 
     // 서버로 설문 생성 요청 (저장 상태)
     try {
-      const createdSurvey = await createSurvey({
+      const createdSurvey = await createSurveyMutation.mutateAsync({
         title: surveyTitle,
         deadline: deadlineISO,
-        link: "",
         participants,
         fields,
       });
@@ -250,25 +287,6 @@ export default function SurveyManagement() {
         alert("설문 저장에 실패했습니다.");
         return;
       }
-
-      // 난수 ID 생성 (로컬 상태 관리용)
-      const surveyId = crypto.randomUUID();
-
-      // 로컬 상태 업데이트
-      const newSurvey: Survey = {
-        id: parseInt(surveyId.split("-")[0], 16) % 1000000, // UUID를 숫자로 변환 (임시)
-        title: surveyTitle,
-        createdDate: new Date().toISOString().split("T")[0],
-        deadline: surveyDeadline,
-        status: "inactive",
-        studentIds: surveyStudents.map((s) => s.id),
-        students: surveyStudents,
-        questions: fixedQuestions,
-      };
-
-      // 로컬 상태 업데이트 (서버에 저장되므로 로컬 스토리지 불필요)
-      const updatedSurveys = [...surveys, newSurvey];
-      setSurveys(updatedSurveys);
 
       // 폼 초기화
       setSurveyTitle("");
@@ -300,7 +318,7 @@ export default function SurveyManagement() {
 
     // 참여자 데이터 변환 (서버 API 형식)
     const participants = surveyStudents.map((s) => ({
-      studentNo: s.id,
+      studentId: s.id,
       name: s.name,
       gender: s.gender as "남" | "여",
     }));
@@ -339,10 +357,9 @@ export default function SurveyManagement() {
 
     // 서버로 설문 생성 요청
     try {
-      const createdSurvey = await createSurvey({
+      const createdSurvey = await createSurveyMutation.mutateAsync({
         title: surveyTitle,
         deadline: deadlineISO,
-        link: "",
         participants,
         fields,
       });
@@ -352,30 +369,11 @@ export default function SurveyManagement() {
         return;
       }
 
-      // 난수 ID 생성 (로컬 상태 관리용)
-      const surveyId = crypto.randomUUID();
-
-      // 로컬 상태 업데이트
-      const newSurvey: Survey = {
-        id: parseInt(surveyId.split("-")[0], 16) % 1000000, // UUID를 숫자로 변환 (임시)
-        title: surveyTitle,
-        createdDate: new Date().toISOString().split("T")[0],
-        deadline: surveyDeadline,
-        status: "active",
-        studentIds: surveyStudents.map((s) => s.id),
-        students: surveyStudents,
-        questions: fixedQuestions,
-      };
-
-      // 로컬 상태 업데이트 (서버에 저장되므로 로컬 스토리지 불필요)
-      const updatedSurveys = [...surveys, newSurvey];
-      setSurveys(updatedSurveys);
-
-      // 서버에서 반환된 링크가 있으면 사용, 없으면 로컬 링크 생성
-      const surveyLink =
-        (createdSurvey as { link?: string }).link ||
-        `${window.location.origin}/survey/${surveyId}`;
-      alert(`설문 배포 완료! 링크: ${surveyLink}`);
+      // 서버에서 받은 formId로 설문 링크 생성
+      const surveyLink = `${window.location.origin}/survey/${createdSurvey.id}`;
+      alert(
+        `설문 배포 완료!\n\n설문 링크: ${surveyLink}\n\n이 링크를 학생들에게 공유해주세요.`
+      );
 
       // 폼 초기화
       setSurveyTitle("");

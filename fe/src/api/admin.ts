@@ -149,6 +149,27 @@ export async function getSurveyStudents(surveyId: string): Promise<SurveyStudent
 }
 
 /**
+ * 학생 인증 (학번과 이름으로 실존하는 학생인지 확인)
+ */
+export async function identifyStudent(
+    studentId: string,
+    name: string
+): Promise<{ isValid: boolean; student?: SurveyStudentResponse }> {
+    const response = await apiPost<{ isValid: boolean; student?: SurveyStudentResponse }>(
+        '/student/identify',
+        {
+            studentId,
+            name,
+        }
+    );
+    if (response.error) {
+        console.error('학생 인증 실패:', response.error);
+        return { isValid: false };
+    }
+    return response.data || { isValid: false };
+}
+
+/**
  * 학생 목록 엑셀 업로드를 위한 S3 presigned URL 요청
  * @param fileName 업로드할 파일명 (예: 'students.xlsx')
  * @param fileType 파일 MIME 타입 (선택사항, 기본값: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -232,6 +253,31 @@ export async function getStudentResponse(
     );
     if (response.error) {
         console.error('응답 조회 실패:', response.error);
+        return null;
+    }
+    return response.data || null;
+}
+
+/**
+ * 설문 응답 제출 (학생용)
+ */
+export async function submitSurveyResponse(
+    formId: string,
+    studentId: string,
+    studentName: string,
+    answers: Record<string, unknown>
+): Promise<SurveySubmissionResponse | null> {
+    const response = await apiPost<SurveySubmissionResponse>(
+        `/forms/${formId}/responses`,
+        {
+            formId, // URL의 formId와 일치하는지 서버에서 검증
+            studentId,
+            studentName,
+            answers,
+        }
+    );
+    if (response.error) {
+        console.error('설문 응답 제출 실패:', response.error);
         return null;
     }
     return response.data || null;

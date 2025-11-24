@@ -1,32 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import IdentityVerification from "../components/Survey/IdentityVerification";
 import SurveyQuestions from "../components/Survey/SurveyQuestions";
+import { useSubmitSurveyResponse, useIdentifyStudent } from "../hooks";
 import "../styles/survey.css";
-
-interface Survey {
-  id: number;
-  title: string;
-  students?: SurveyStudent[];
-  studentIds: string[];
-}
-
-interface SurveyStudent {
-  id: string;
-  name: string;
-  gender: string;
-}
-
-// 설문별 학생 데이터 가져오기 함수 (서버 API로 대체 필요)
-const getSurveyStudentData = (surveyId: number) => {
-  // TODO: 서버 API에서 설문 정보 가져오기
-  return [];
-};
 
 export default function Survey() {
   const { surveyId } = useParams<{ surveyId: string }>();
-  const surveyIdNum = surveyId ? parseInt(surveyId, 10) : null;
-  
+
   const [isVerified, setIsVerified] = useState(false);
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
@@ -42,40 +23,46 @@ export default function Survey() {
     specialNotes: "",
   });
 
-  // 이미 제출했는지 확인 (서버 API로 대체 필요)
-  useEffect(() => {
-    if (studentId && surveyIdNum) {
-      // TODO: 서버 API에서 제출 여부 확인
-      // const submitted = await checkSubmissionStatus(surveyIdNum, studentId);
-      // setIsSubmitted(submitted);
-    }
-  }, [studentId, surveyIdNum]);
+  // 설문 응답 제출 훅
+  const submitResponseMutation = useSubmitSurveyResponse();
 
-  const handleVerify = () => {
+  // 학생 인증 훅
+  const identifyStudentMutation = useIdentifyStudent();
+
+  const handleVerify = async () => {
     setVerificationError("");
     if (!studentId || !studentName) {
       setVerificationError("학번과 이름을 모두 입력해주세요.");
       return;
     }
 
-    if (!surveyIdNum) {
+    if (!surveyId) {
       setVerificationError("설문 ID가 없습니다.");
       return;
     }
 
-    // 설문별 학생 정보 확인 (서버 API로 대체 필요)
-    // TODO: 서버 API에서 학생 정보 확인
-    // const studentData = await getSurveyStudents(surveyIdNum);
-    // const student = studentData.find(
-    //   (s) => s.id === studentId && s.name === studentName
-    // );
-    
-    // 임시로 항상 인증 성공 (서버 API 연동 필요)
-    setIsVerified(true);
-    setVerificationError("");
+    // 서버 API로 학생 인증 (실존하는 학생인지 확인)
+    try {
+      const result = await identifyStudentMutation.mutateAsync({
+        studentId: studentId,
+        name: studentName,
+      });
+
+      if (result.isValid) {
+        setIsVerified(true);
+        setVerificationError("");
+      } else {
+        setVerificationError(
+          "학번과 이름이 일치하지 않거나 등록되지 않은 학생입니다."
+        );
+      }
+    } catch (error) {
+      console.error("학생 인증 실패:", error);
+      setVerificationError("학생 인증에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isVerified) {
       alert("먼저 신원 확인을 완료해주세요.");
       return;
@@ -97,24 +84,31 @@ export default function Survey() {
       return;
     }
 
-    if (!surveyIdNum) {
+    if (!surveyId) {
       alert("설문 ID가 없습니다.");
       return;
     }
 
-    // 제출 데이터 서버로 전송 (서버 API로 대체)
-    const submissionData = {
-      studentId,
-      studentName,
-      ...formData,
-      submittedAt: new Date().toISOString(),
-    };
-    
-    // TODO: 서버 API로 설문 응답 제출
-    // await submitSurveyResponse(surveyIdNum, submissionData);
-    
-    setIsSubmitted(true);
-    alert("설문조사가 제출되었습니다!");
+    // 서버 API로 설문 응답 제출 (URL의 formId를 서버로 보내서 검증)
+    try {
+      const result = await submitResponseMutation.mutateAsync({
+        formId: surveyId, // URL의 formId
+        studentId,
+        studentName,
+        answers: formData,
+      });
+
+      if (!result) {
+        alert("설문 제출에 실패했습니다. 다시 시도해주세요.");
+        return;
+      }
+
+      setIsSubmitted(true);
+      alert("설문조사가 제출되었습니다!");
+    } catch (error) {
+      console.error("설문 제출 실패:", error);
+      alert("설문 제출에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   const handleRadioChange = (field: string, value: string) => {

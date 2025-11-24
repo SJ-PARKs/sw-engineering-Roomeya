@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signIn, signUpAdmin, confirmSignUpAdmin } from "../api/auth";
+import { useSignIn, useSignUpAdmin, useConfirmSignUpAdmin } from "../hooks";
 import "../styles/login.css";
 
 type TabType = "login" | "signup" | "confirm";
@@ -12,17 +12,24 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmationCode, setConfirmationCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [signupEmail, setSignupEmail] = useState(""); // 회원가입 시 사용한 이메일 저장
   const navigate = useNavigate();
+
+  const signInMutation = useSignIn();
+  const signUpMutation = useSignUpAdmin();
+  const confirmSignUpMutation = useConfirmSignUpAdmin();
+
+  const loading =
+    signInMutation.isPending ||
+    signUpMutation.isPending ||
+    confirmSignUpMutation.isPending;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
     try {
-      const result = await signIn(email, password);
+      const result = await signInMutation.mutateAsync({ email, password });
       if (result.error) {
         setError(result.error);
       } else {
@@ -30,9 +37,8 @@ export default function Login() {
         navigate("/survey-management");
       }
     } catch (err) {
-      setError("로그인에 실패했습니다.");
-    } finally {
-      setLoading(false);
+      console.error(err);
+      setError("로그인에 실패했습니다. ");
     }
   };
 
@@ -52,14 +58,8 @@ export default function Login() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      const result = await signUpAdmin(email, password);
-      console.log("email", email);
-      console.log("password", password);
-
-      console.log(result);
+      const result = await signUpMutation.mutateAsync({ email, password });
       if (result.error) {
         setError(result.error);
       } else {
@@ -69,19 +69,20 @@ export default function Login() {
         setError(null);
       }
     } catch (err) {
+      console.error(err);
       setError("회원가입에 실패했습니다.");
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleConfirmSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
     try {
-      const result = await confirmSignUpAdmin(signupEmail, confirmationCode);
+      const result = await confirmSignUpMutation.mutateAsync({
+        email: signupEmail,
+        confirmationCode,
+      });
       if (result.error) {
         setError(result.error);
       } else {
@@ -95,9 +96,8 @@ export default function Login() {
         setConfirmPassword("");
       }
     } catch (err) {
+      console.error(err);
       setError("인증 코드 확인에 실패했습니다.");
-    } finally {
-      setLoading(false);
     }
   };
 

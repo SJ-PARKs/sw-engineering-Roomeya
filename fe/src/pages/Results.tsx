@@ -4,6 +4,7 @@ import ResultsSurveySelector from "../components/Results/ResultsSurveySelector";
 import SummaryCards from "../components/Results/SummaryCards";
 import ResultsTable from "../components/Results/ResultsTable";
 import Pagination from "../components/common/Pagination";
+import { useSurveys, useMatchingResults } from "../hooks";
 import "../styles/common.css";
 import "../styles/results.css";
 import "../styles/dashboard.css";
@@ -33,36 +34,43 @@ interface MatchedPair {
 
 export default function Results() {
   const [selectedSurveyId, setSelectedSurveyId] = useState<number | null>(null);
-  const [results, setResults] = useState<MatchResult[]>([]);
-  const [surveys, setSurveys] = useState<Survey[]>([]);
 
-  // 설문 목록 가져오기 (매칭 결과가 있는 설문만) - 서버 API로 대체 필요
-  const getSurveysWithResults = (): Survey[] => {
-    // TODO: 서버 API에서 매칭 결과가 있는 설문 목록 가져오기
-    // return await getSurveysWithMatchingResults();
-    return [];
-  };
+  // 설문 목록 조회
+  const { data: surveysData = [] } = useSurveys();
+  
+  // 매칭 결과 조회
+  const { data: matchingData } = useMatchingResults(
+    selectedSurveyId ? selectedSurveyId.toString() : null
+  );
 
-  // 선택한 설문의 매칭 결과 가져오기 - 서버 API로 대체 필요
-  const getMatchingResults = (surveyId: number): MatchResult[] => {
-    // TODO: 서버 API에서 매칭 결과 가져오기
-    // const matchedPairs = await getMatchingResults(surveyId);
-    // return matchedPairs.map((pair, index) => ({
-    //   id: index + 1,
-    //   roomNumber: `A${String(index + 1).padStart(3, "0")}`,
-    //   studentA: `${pair.studentAId} ${pair.studentA}`,
-    //   studentB: `${pair.studentBId} ${pair.studentB}`,
-    //   matchScore: pair.score,
-    // }));
-    return [];
-  };
+  // 설문 목록을 로컬 형식으로 변환 (매칭 결과가 있는 설문만)
+  const surveys: Survey[] = surveysData.map((survey) => {
+    const surveyWithExtras = survey as typeof survey & { deadline?: string };
+    return {
+      id: parseInt(survey.id) || 0,
+      title: survey.title,
+      deadline: surveyWithExtras.deadline ? new Date(surveyWithExtras.deadline).toISOString().split("T")[0] : "",
+      status: survey.status === "published" ? "active" : "inactive",
+    };
+  });
 
-  // 설문 목록 로드
+  // 매칭 결과를 로컬 형식으로 변환
+  const results: MatchResult[] = matchingData?.pairs?.map((pair, index) => {
+    // MatchingPairResponse 타입에 맞게 변환
+    const student1Parts = pair.student1?.split(' ') || ['', ''];
+    const student2Parts = pair.student2?.split(' ') || ['', ''];
+    
+    return {
+      id: index + 1,
+      roomNumber: `A${String(index + 1).padStart(3, "0")}`,
+      studentA: pair.student1 || '',
+      studentB: pair.student2 || '',
+      matchScore: pair.score || 0,
+    };
+  }) || [];
+
+  // URL 파라미터에서 설문 ID 가져오기
   useEffect(() => {
-    const surveysWithResults = getSurveysWithResults();
-    setSurveys(surveysWithResults);
-
-    // URL 파라미터에서 설문 ID 가져오기 (선택사항)
     const urlParams = new URLSearchParams(window.location.search);
     const surveyIdParam = urlParams.get("surveyId");
     if (surveyIdParam) {
@@ -72,16 +80,6 @@ export default function Results() {
       }
     }
   }, []);
-
-  // 선택한 설문이 변경되면 결과 업데이트
-  useEffect(() => {
-    if (selectedSurveyId) {
-      const matchingResults = getMatchingResults(selectedSurveyId);
-      setResults(matchingResults);
-    } else {
-      setResults([]);
-    }
-  }, [selectedSurveyId]);
 
   const handleEditMatch = (matchId: number) => {
     alert(`매칭 ${matchId} 수정 기능 (구현 예정)`);

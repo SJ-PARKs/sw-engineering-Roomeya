@@ -3,6 +3,7 @@ import AdminLayout from "../components/common/AdminLayout";
 import SurveySelector from "../components/Matching/SurveySelector";
 import MatchingStats from "../components/Matching/MatchingStats";
 import MatchingAction from "../components/Matching/MatchingAction";
+import { useSurveys, useSurveyResponses, useRunMatching } from "../hooks";
 import "../styles/dashboard.css";
 import "../styles/survey.css";
 
@@ -42,38 +43,115 @@ interface SurveyResponse {
 }
 
 export default function Matching() {
-  const [isRunning, setIsRunning] = useState(false);
   const [matchingStatus, setMatchingStatus] = useState<string>("");
   const [selectedSurveyId, setSelectedSurveyId] = useState<number | null>(null);
 
-  // 설문 목록 가져오기 (서버 API로 대체 필요)
-  const getSurveys = (): Survey[] => {
-    // TODO: 서버 API에서 설문 목록 가져오기
-    // return await getSurveys();
-    return [];
+  // 설문 목록 조회
+  const { data: surveysData = [] } = useSurveys();
+  const runMatchingMutation = useRunMatching();
+
+  // 설문 목록을 로컬 형식으로 변환
+  const surveys: Survey[] = surveysData
+    .filter((s) => s.status === "published")
+    .map((survey) => {
+      // API 응답에 추가 필드가 있을 수 있으므로 타입 단언 사용
+      const surveyWithExtras = survey as typeof survey & {
+        deadline?: string;
+        participants?: Array<{
+          studentId: string;
+          name: string;
+          gender: string;
+        }>;
+        fields?: Array<{
+          id: string;
+          title: string;
+          type: string;
+          options?: string[];
+        }>;
+      };
+
+      return {
+        id: parseInt(survey.id) || 0,
+        title: survey.title,
+        createdDate: survey.createdAt
+          ? new Date(survey.createdAt).toISOString().split("T")[0]
+          : "",
+        deadline: surveyWithExtras.deadline
+          ? new Date(surveyWithExtras.deadline).toISOString().split("T")[0]
+          : "",
+        status: survey.status === "published" ? "active" : "inactive",
+        studentIds:
+          surveyWithExtras.participants?.map((p) => p.studentId) || [],
+        students:
+          surveyWithExtras.participants?.map((p) => ({
+            id: p.studentId,
+            name: p.name,
+            gender: p.gender,
+          })) || [],
+        questions:
+          surveyWithExtras.fields?.map((f, index) => ({
+            id: index + 1,
+            text: f.title,
+            type:
+              f.type === "multiple-choice" ? "multiple-choice" : "text-input",
+          })) || [],
+      };
+    });
+
+  // 선택된 설문의 응답 데이터 조회
+  const { data: responsesData = [] } = useSurveyResponses(
+    selectedSurveyId ? selectedSurveyId.toString() : null
+  );
+
+  // 응답 데이터를 로컬 형식으로 변환
+  const getSurveyResponses = (): SurveyResponse[] => {
+    return responsesData.map((response) => {
+      // 설문 학생 목록에서 학생 이름 찾기
+      const survey = surveys.find((s) => s.id === selectedSurveyId);
+      const student = survey?.students?.find(
+        (s) => s.id === response.studentId
+      );
+
+      return {
+        studentId: response.studentId || "",
+        studentName: student?.name || "",
+        wakeup:
+          ((response.answers as Record<string, unknown>)?.wakeup as string) ||
+          "",
+        bedtime:
+          ((response.answers as Record<string, unknown>)?.bedtime as string) ||
+          "",
+        smoking:
+          ((response.answers as Record<string, unknown>)?.smoking as string) ||
+          "",
+        sleepHabits:
+          ((response.answers as Record<string, unknown>)
+            ?.sleepHabits as string) || "",
+        mbti:
+          ((response.answers as Record<string, unknown>)?.mbti as string) || "",
+        major:
+          ((response.answers as Record<string, unknown>)?.major as string) ||
+          "",
+        specialNotes:
+          ((response.answers as Record<string, unknown>)
+            ?.specialNotes as string) || "",
+      };
+    });
   };
 
-  // 특정 설문의 응답 데이터 가져오기 (서버 API로 대체 필요)
-  const getSurveyResponses = (surveyId: number): SurveyResponse[] => {
-    // TODO: 서버 API에서 설문 응답 가져오기
-    // return await getSurveyResponses(surveyId);
-    return [];
-  };
-
-  const handleRunMatching = () => {
+  const handleRunMatching = async () => {
     if (!selectedSurveyId) {
       alert("매칭할 설문을 선택해주세요.");
       return;
     }
 
-    const surveys = getSurveys();
     const survey = surveys.find((s) => s.id === selectedSurveyId);
     if (!survey) {
       alert("선택한 설문을 찾을 수 없습니다.");
       return;
     }
 
-    const responses = getSurveyResponses(selectedSurveyId);
+    const responses = getSurveyResponses();
     const studentCount = survey.students
       ? survey.students.length
       : survey.studentIds.length;
@@ -90,79 +168,30 @@ export default function Matching() {
       return;
     }
 
-    setIsRunning(true);
     setMatchingStatus("매칭 알고리즘 실행 중...");
 
-    // 매칭 알고리즘 시뮬레이션 (실제로는 서버에서 처리)
-    setTimeout(() => {
-      // 간단한 매칭 로직 (실제로는 더 복잡한 알고리즘 사용)
-      const matchedPairs: Array<{
-        studentA: string;
-        studentAId: string;
-        studentB: string;
-        studentBId: string;
-        score: number;
-      }> = [];
-      const used = new Set<string>();
-
-      for (let i = 0; i < responses.length; i++) {
-        if (used.has(responses[i].studentId)) continue;
-
-        let bestMatch = null;
-        let bestScore = 0;
-
-        for (let j = i + 1; j < responses.length; j++) {
-          if (used.has(responses[j].studentId)) continue;
-
-          // 간단한 매칭 점수 계산
-          let score = 0;
-          if (responses[i].wakeup === responses[j].wakeup) score += 25;
-          if (responses[i].bedtime === responses[j].bedtime) score += 25;
-          if (responses[i].smoking === responses[j].smoking) score += 20;
-          if (responses[i].sleepHabits === responses[j].sleepHabits)
-            score += 15;
-          if (
-            responses[i].mbti &&
-            responses[j].mbti &&
-            responses[i].mbti === responses[j].mbti
-          )
-            score += 15;
-
-          if (score > bestScore) {
-            bestScore = score;
-            bestMatch = responses[j];
-          }
-        }
-
-        if (bestMatch && bestScore >= 50) {
-          matchedPairs.push({
-            studentA: responses[i].studentName,
-            studentAId: responses[i].studentId,
-            studentB: bestMatch.studentName,
-            studentBId: bestMatch.studentId,
-            score: bestScore,
-          });
-          used.add(responses[i].studentId);
-          used.add(bestMatch.studentId);
-        }
-      }
-
-      // 매칭 결과를 서버로 전송 (서버 API로 대체)
-      // TODO: 서버 API로 매칭 결과 저장
-      // await saveMatchingResults(selectedSurveyId, matchedPairs);
-
-      setIsRunning(false);
-      setMatchingStatus(
-        `매칭 완료! ${matchedPairs.length}개의 쌍이 매칭되었습니다.`
+    try {
+      const result = await runMatchingMutation.mutateAsync(
+        selectedSurveyId.toString()
       );
 
-      setTimeout(() => {
-        window.location.href = `/results?surveyId=${selectedSurveyId}`;
-      }, 2000);
-    }, 2000);
+      if (result) {
+        setMatchingStatus(
+          `매칭 완료! ${result.pairs?.length || 0}개의 쌍이 매칭되었습니다.`
+        );
+
+        setTimeout(() => {
+          window.location.href = `/results?surveyId=${selectedSurveyId}`;
+        }, 2000);
+      } else {
+        setMatchingStatus("매칭 실행에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("매칭 실행 실패:", error);
+      setMatchingStatus("매칭 실행에 실패했습니다.");
+    }
   };
 
-  const surveys = getSurveys();
   const activeSurveys = surveys.filter((s) => s.status === "active");
 
   // 선택된 설문의 통계 계산
@@ -170,7 +199,7 @@ export default function Matching() {
     const survey = surveys.find((s) => s.id === surveyId);
     if (!survey) return { total: 0, completed: 0, rate: 0 };
 
-    const responses = getSurveyResponses(surveyId);
+    const responses = getSurveyResponses();
     const total = survey.students
       ? survey.students.length
       : survey.studentIds.length;
@@ -211,7 +240,7 @@ export default function Matching() {
 
             {stats.completed >= 2 && (
               <MatchingAction
-                isRunning={isRunning}
+                isRunning={runMatchingMutation.isPending}
                 status={matchingStatus}
                 onRun={handleRunMatching}
               />
