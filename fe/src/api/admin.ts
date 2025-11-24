@@ -1,4 +1,6 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './config/api';
+import { apiClient } from './config/axios';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import type {
     SurveyResponse,
     SurveySubmissionResponse,
@@ -7,6 +9,8 @@ import type {
     CreateSurveyRequest,
     UpdateSurveyRequest,
     AddStudentToSurveyRequest,
+    GetUploadUrlRequest,
+    UploadUrlResponse,
     SuccessResponse,
 } from '../types';
 
@@ -142,6 +146,60 @@ export async function getSurveyStudents(surveyId: string): Promise<SurveyStudent
         return [];
     }
     return response.data || [];
+}
+
+/**
+ * 학생 목록 엑셀 업로드를 위한 S3 presigned URL 요청
+ * @param fileName 업로드할 파일명 (예: 'students.xlsx')
+ * @param fileType 파일 MIME 타입 (선택사항, 기본값: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+ * @returns S3 presigned URL과 파일 키
+ */
+export async function getStudentUploadUrl(
+    fileName: string,
+    fileType?: string
+): Promise<UploadUrlResponse | null> {
+    // 인증 토큰 가져오기
+    let jwtToken: string | null = null;
+    try {
+        const session = await fetchAuthSession();
+        jwtToken = session.tokens?.idToken?.toString() || null;
+
+        if (!jwtToken) {
+            console.error('인증 토큰이 없습니다. 로그인이 필요합니다.');
+            return null;
+        }
+    } catch (error) {
+        console.error('인증 토큰을 가져올 수 없습니다:', error);
+        return null;
+    }
+
+    const request: GetUploadUrlRequest = {
+        fileName,
+        fileType: fileType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
+
+    // 명시적으로 인증 헤더를 포함하여 요청
+    const response = await apiClient.post<UploadUrlResponse>(
+        '/admin/students/upload-url',
+        request,
+        {
+            headers: {
+                'Authorization': `Bearer ${jwtToken}`,
+                'Content-Type': 'application/json',
+            },
+        }
+    );
+
+    if (response.error) {
+        console.error('업로드 URL 요청 실패:', response.error);
+        // 인증 관련 에러인지 확인
+        if (response.error.statusCode === 401 || response.error.code === 'UNAUTHORIZED') {
+            console.error('인증이 필요합니다. 로그인해주세요.');
+        }
+        return null;
+    }
+
+    return response.data || null;
 }
 
 // ========== 설문 응답 관리 ==========

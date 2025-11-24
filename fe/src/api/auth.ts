@@ -1,6 +1,7 @@
 import { signIn as amplifySignIn, signOut as amplifySignOut, getCurrentUser as amplifyGetCurrentUser, fetchAuthSession, resetPassword, confirmResetPassword, signUp, confirmSignUp } from 'aws-amplify/auth';
 import type { CognitoUser } from '../types';
 
+
 /**
  * 이메일과 비밀번호로 로그인
  */
@@ -10,11 +11,11 @@ export async function signIn(
 ): Promise<{ user: CognitoUser | null; error: string | null }> {
     try {
         await amplifySignIn({ username: email, password });
-        
+
         // 로그인 성공 후 사용자 정보 가져오기
         const user = await amplifyGetCurrentUser();
         const session = await fetchAuthSession();
-        
+
         return {
             user: {
                 username: user.username,
@@ -50,7 +51,7 @@ export async function getCurrentUser(): Promise<CognitoUser | null> {
     try {
         const user = await amplifyGetCurrentUser();
         const session = await fetchAuthSession();
-        
+
         return {
             username: user.username,
             email: session.tokens?.idToken?.payload?.email as string | undefined,

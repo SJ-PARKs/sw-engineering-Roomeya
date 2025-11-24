@@ -19,3 +19,11 @@ export interface RemoveStudentFromSurveyRequest {
     studentId: string;
 }
 
+/**
+ * S3 presigned URL 요청
+ */
+export interface GetUploadUrlRequest {
+    fileName: string;
+    fileType?: string; // MIME type (예: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+}
+

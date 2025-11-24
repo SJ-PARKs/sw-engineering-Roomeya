@@ -32,6 +32,7 @@ interface SurveyFormProps {
   onUploadExcel: () => void;
   onSave: () => void;
   onDeploy: () => void;
+  isUploading?: boolean;
 }
 
 export default function SurveyForm({
@@ -52,6 +53,7 @@ export default function SurveyForm({
   onUploadExcel,
   onSave,
   onDeploy,
+  isUploading = false,
 }: SurveyFormProps) {
   return (
     <div className="survey-management-section">
@@ -89,6 +91,7 @@ export default function SurveyForm({
         onAddStudent={onAddStudent}
         onDeleteStudent={onDeleteStudent}
         onUploadExcel={onUploadExcel}
+        isUploading={isUploading}
       />
 
       <QuestionList questions={questions} />

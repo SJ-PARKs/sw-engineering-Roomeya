@@ -18,6 +18,7 @@ export type {
     CreateStudentRequest,
     AddStudentToSurveyRequest,
     RemoveStudentFromSurveyRequest,
+    GetUploadUrlRequest,
 } from './student.request';
 
 export type {

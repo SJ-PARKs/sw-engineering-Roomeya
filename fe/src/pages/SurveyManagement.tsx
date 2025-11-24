@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import AdminLayout from "../components/common/AdminLayout";
 import SurveyListTable from "../components/SurveyManagement/SurveyListTable";
 import SurveyForm from "../components/SurveyManagement/SurveyForm";
+import { getStudentUploadUrl } from "../api/admin";
 import "../styles/survey-management.css";
 
 interface Survey {
@@ -193,6 +194,7 @@ export default function SurveyManagement() {
   const [newStudentId, setNewStudentId] = useState("");
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentGender, setNewStudentGender] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleEditSurvey = (surveyId: number) => {
     alert(`설문 ${surveyId} 수정 기능 (구현 예정)`);
@@ -236,10 +238,86 @@ export default function SurveyManagement() {
     }
   };
 
-  const handleUploadExcel = () => {
-    alert(
-      "엑셀 업로드 기능 (구현 예정)\n엑셀 파일 형식: 학번, 이름, 성별, 이메일, 생년월일"
-    );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadExcel = async () => {
+    // 파일 선택 다이얼로그 열기
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    // 엑셀 파일 확장자 확인
+    const validExtensions = [".xlsx", ".xls"];
+    const fileExtension = file.name
+      .substring(file.name.lastIndexOf("."))
+      .toLowerCase();
+
+    if (!validExtensions.includes(fileExtension)) {
+      alert("엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // 1. Presigned URL 요청
+      const uploadUrlResponse = await getStudentUploadUrl(
+        file.name,
+        file.type ||
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      if (!uploadUrlResponse) {
+        alert("업로드 URL을 가져오는데 실패했습니다.");
+        return;
+      }
+
+      // 2. S3에 파일 업로드
+      const uploadResponse = await fetch(uploadUrlResponse.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type":
+            file.type ||
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("파일 업로드에 실패했습니다.");
+      }
+
+      // 3. 업로드 성공
+      alert(
+        `파일 업로드가 완료되었습니다!\n파일명: ${file.name}\n파일 키: ${uploadUrlResponse.fileKey}`
+      );
+
+      // TODO: 백엔드에서 엑셀 파일을 파싱하여 학생 목록을 가져오는 API 호출
+      // 예: const students = await parseExcelFile(uploadUrlResponse.fileKey);
+      // setSurveyStudents(students);
+    } catch (error) {
+      console.error("파일 업로드 실패:", error);
+      alert(
+        `파일 업로드에 실패했습니다: ${
+          error instanceof Error ? error.message : "알 수 없는 오류"
+        }`
+      );
+    } finally {
+      setIsUploading(false);
+      // 파일 input 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const handleSaveSurvey = () => {
@@ -313,6 +391,15 @@ export default function SurveyManagement() {
     <AdminLayout>
       <div className="page-title">매칭 설문 관리</div>
 
+      {/* 숨겨진 파일 input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+
       <div style={{ marginBottom: "20px" }}>
         <button
           className="btn-success"
@@ -347,6 +434,7 @@ export default function SurveyManagement() {
         onUploadExcel={handleUploadExcel}
         onSave={handleSaveSurvey}
         onDeploy={handleDeploySurvey}
+        isUploading={isUploading}
       />
     </AdminLayout>
   );

@@ -22,6 +22,7 @@ export type {
 export type {
     SurveyStudentResponse,
     StudentListResponse,
+    UploadUrlResponse,
 } from './student.response';
 
 export type {

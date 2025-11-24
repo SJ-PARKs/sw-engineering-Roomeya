@@ -56,6 +56,10 @@ export default function Login() {
 
     try {
       const result = await signUpAdmin(email, password);
+      console.log("email", email);
+      console.log("password", password);
+
+      console.log(result);
       if (result.error) {
         setError(result.error);
       } else {

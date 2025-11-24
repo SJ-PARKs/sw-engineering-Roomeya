@@ -13,3 +13,12 @@ export interface StudentListResponse {
     total: number;
 }
 
+/**
+ * S3 presigned URL 응답
+ */
+export interface UploadUrlResponse {
+    uploadUrl: string; // S3 presigned URL
+    fileKey: string; // S3에 저장될 파일 키
+    expiresIn?: number; // URL 만료 시간 (초)
+}
+

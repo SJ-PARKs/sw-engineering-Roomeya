@@ -17,6 +17,7 @@ interface SurveyStudentManagementProps {
   onAddStudent: () => void;
   onDeleteStudent: (studentId: string) => void;
   onUploadExcel: () => void;
+  isUploading?: boolean;
 }
 
 export default function SurveyStudentManagement({
@@ -30,6 +31,7 @@ export default function SurveyStudentManagement({
   onAddStudent,
   onDeleteStudent,
   onUploadExcel,
+  isUploading = false,
 }: SurveyStudentManagementProps) {
   return (
     <div className="form-group">
@@ -37,8 +39,12 @@ export default function SurveyStudentManagement({
       <div className="survey-student-management">
         <div className="student-add-section">
           <div className="action-buttons">
-            <button className="btn-success" onClick={onUploadExcel}>
-              엑셀 파일 업로드
+            <button
+              className="btn-success"
+              onClick={onUploadExcel}
+              disabled={isUploading}
+            >
+              {isUploading ? "업로드 중..." : "엑셀 파일 업로드"}
             </button>
             <button className="btn-secondary" onClick={onAddStudent}>
               개별 학생 추가
@@ -115,4 +121,3 @@ export default function SurveyStudentManagement({
     </div>
   );
 }
-
